@@ -269,6 +269,9 @@ int wmain(int argc, const WCHAR* args[])
     boost::asio::io_service ioctx;
     boost::asio::serial_port serialPort(ioctx);
     hInstance = GetModuleHandle(nullptr);
+    
+    SetConsoleCP(CP_UTF8);
+    SetConsoleOutputCP(CP_UTF8);
 
     DWORD consoleMode = 0;
     auto conin = GetStdHandle(STD_INPUT_HANDLE);
@@ -374,12 +377,6 @@ INT_PTR CALLBACK SettingFunc(HWND hDlg, UINT message, WPARAM wParam, LPARAM lPar
         }
 
         auto hWndBaudRate = GetDlgItem(hDlg, IDC_COMBO_SPEED);
-        ComboBox_AddString(hWndBaudRate, L"50"); 
-        ComboBox_AddString(hWndBaudRate, L"75");
-        ComboBox_AddString(hWndBaudRate, L"100");
-        ComboBox_AddString(hWndBaudRate, L"105");
-        ComboBox_AddString(hWndBaudRate, L"300");
-        ComboBox_AddString(hWndBaudRate, L"600");
         ComboBox_AddString(hWndBaudRate, L"1200");
         ComboBox_AddString(hWndBaudRate, L"2400");
         ComboBox_AddString(hWndBaudRate, L"4800");
@@ -388,8 +385,7 @@ INT_PTR CALLBACK SettingFunc(HWND hDlg, UINT message, WPARAM wParam, LPARAM lPar
         ComboBox_AddString(hWndBaudRate, L"38400");
         ComboBox_AddString(hWndBaudRate, L"57600");
         ComboBox_AddString(hWndBaudRate, L"115200");
-        ComboBox_AddString(hWndBaudRate, L"128000");
-        ComboBox_AddString(hWndBaudRate, L"256000");
+        ComboBox_AddString(hWndBaudRate, L"1500000");
         ComboBox_SetText(hWndBaudRate, std::to_wstring(cfg.BaudRate).c_str());
 
         auto hWndWordLength = GetDlgItem(hDlg, IDC_COMBO_WORD);
