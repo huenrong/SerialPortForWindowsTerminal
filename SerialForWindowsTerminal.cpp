@@ -146,7 +146,7 @@ static void WriteSerialConfig(const SERIAL_CONFIG& cfg)
     }
 }
 
-static boost::system::error_code InitializeSerialPort(boost::asio::serial_port& serialPort,const SERIAL_CONFIG& cfg, boost::system::error_code& ec)
+static boost::system::error_code InitializeSerialPort(boost::asio::serial_port& serialPort, const SERIAL_CONFIG& cfg, boost::system::error_code& ec)
 {
     serialPort.set_option(boost::asio::serial_port::baud_rate(cfg.BaudRate), ec);
     if (ec)
@@ -209,35 +209,75 @@ static boost::system::error_code InitializeSerialPort(boost::asio::serial_port& 
     return ec;
 }
 
+static bool ProcInputCmd(boost::asio::serial_port& serialPort, const std::string& inputCmd)
+{
+    if (serialPort.is_open())
+    {
+        if (inputCmd.find("sp-exit") != std::string::npos)
+        {
+            std::cerr << std::endl << "\033[31m" << "Close serial port" << "\033[0m" << std::endl;
+            serialPort.close();
+
+            return true;
+        }
+    }
+    else
+    {
+        if ((inputCmd.find("\r") != std::string::npos) || (inputCmd.find("\r\n") != std::string::npos))
+        {
+            std::cerr << "\033[32m" << "Reopen serial port" << "\033[0m" << std::endl;
+
+            auto cfg = ReadSerialConfig();
+            auto portName = std::string("COM") + std::to_string(cfg.Serial);
+            boost::system::error_code ec;
+            if (serialPort.open(portName, ec))
+            {
+                std::cerr << "\033[31m" << "can not open " << portName << "\033[0m" << std::endl;
+                std::cerr << "\033[31m" << "error : " << StringToUtf8(ec.message()) << "\033[0m" << std::endl;
+
+                return false;
+            }
+
+            if (InitializeSerialPort(serialPort, cfg, ec))
+            {
+                std::cerr << "\033[31m" << "can not initialize " << portName << "\033[0m" << std::endl;
+                std::cerr << "\033[31m" << "error : " << StringToUtf8(ec.message()) << "\033[0m" << std::endl;
+
+                return false;
+            }
+
+            return true;
+        }
+    }
+
+    return false;
+}
+
 template <class TStream1, class TStream2>
-static void DoStreamToStream(TStream1& stream1, TStream2& stream2, std::vector<uint8_t>& buffer)
+static void DoStreamToStream(TStream1& stream1, TStream2& stream2, std::vector<uint8_t>& buffer, boost::asio::serial_port& serialPort)
 {
     stream1.async_read_some(
         boost::asio::buffer(buffer.data(), buffer.size()),
-        [&stream1, &stream2, &buffer](const boost::system::error_code& ec, std::size_t bytes_transferred)
+        [&stream1, &stream2, &buffer, &serialPort](const boost::system::error_code& ec, std::size_t bytes_transferred)
         {
-            if (ec)
-            {
-                std::cerr << "\033[31m" << "error : " << StringToUtf8(ec.message()) << "\033[0m" << std::endl;
-            }
-            else
+            // 将读取到的字节转换为字符串
+            std::string inputCmd(buffer.begin(), buffer.begin() + bytes_transferred);
+            if (!ProcInputCmd(serialPort, inputCmd))
             {
                 boost::asio::async_write(
                     stream2,
                     boost::asio::const_buffer(buffer.data(), bytes_transferred),
-                    [&stream1, &stream2, &buffer](const boost::system::error_code& ec, std::size_t bytes_transferred)
+                    [&stream1, &stream2, &buffer, &serialPort](const boost::system::error_code& ec, std::size_t bytes_transferred)
                     {
                         if (ec)
                         {
                             std::cerr << "\033[31m" << "error : " << StringToUtf8(ec.message()) << "\033[0m" << std::endl;
                         }
-                        else
-                        {
-                            DoStreamToStream(stream1, stream2, buffer);
-                        }
                     }
                 );
             }
+
+            DoStreamToStream(stream1, stream2, buffer, serialPort);
         }
     );
 }
@@ -262,8 +302,8 @@ static boost::system::error_code DoWork(boost::asio::io_service& ioctx, boost::a
     if (stdoutput.assign(conout, ec))
         return ec;
 
-    DoStreamToStream(serialPort, stdoutput, serialPortRecvBuffer);
-    DoStreamToStream(stdinput, serialPort, serialPortSendBuffer);
+    DoStreamToStream(serialPort, stdoutput, serialPortRecvBuffer, serialPort);
+    DoStreamToStream(stdinput, serialPort, serialPortSendBuffer, serialPort);
     ioctx.run(ec);
     return ec;
 }
@@ -305,7 +345,7 @@ int wmain(int argc, const WCHAR* args[])
             auto portName = std::string("COM") + std::to_string(cfg.Serial);
             if (serialPort.open(portName, ec))
             {
-                std::cerr << "\033[31m" << "can not open " << portName << "\033[0m" <<std::endl;
+                std::cerr << "\033[31m" << "can not open " << portName << "\033[0m" << std::endl;
                 std::cerr << "\033[31m" << "error : " << StringToUtf8(ec.message()) << "\033[0m" << std::endl;
                 continue;
             }
