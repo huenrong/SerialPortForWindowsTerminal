@@ -6,8 +6,9 @@
 #include <vector>
 #include <string>
 #include <iostream>
-#include <boost/asio.hpp> 
+#include <boost/asio.hpp>
 #include <boost/asio/windows/stream_handle.hpp>
+#include <boost/locale.hpp>
 
 #define MAX_LOADSTRING 100
 
@@ -16,6 +17,10 @@ HINSTANCE hInstance;
 INT_PTR CALLBACK    About(HWND, UINT, WPARAM, LPARAM);
 INT_PTR CALLBACK    SettingFunc(HWND, UINT, WPARAM, LPARAM);
 
+static std::string StringToUtf8(const std::string& str)
+{
+    return boost::locale::conv::to_utf<char>(str, "GBK");
+}
 
 using PortsArray = std::vector<std::pair<std::wstring, int>>;
 static PortsArray GetAllPorts(void)
@@ -200,7 +205,7 @@ static boost::system::error_code InitializeSerialPort(boost::asio::serial_port& 
         serialPort.set_option(boost::asio::serial_port::flow_control(boost::asio::serial_port::flow_control::none), ec);
         break;
     }
-    
+
     return ec;
 }
 
@@ -213,7 +218,7 @@ static void DoStreamToStream(TStream1& stream1, TStream2& stream2, std::vector<u
         {
             if (ec)
             {
-                std::cerr << "\033[31m" << "error : " << ec.message() << "\033[0m" << std::endl;
+                std::cerr << "\033[31m" << "error : " << StringToUtf8(ec.message()) << "\033[0m" << std::endl;
             }
             else
             {
@@ -224,7 +229,7 @@ static void DoStreamToStream(TStream1& stream1, TStream2& stream2, std::vector<u
                     {
                         if (ec)
                         {
-                            std::cerr << "\033[31m" << "error : " << ec.message() << "\033[0m" << std::endl;
+                            std::cerr << "\033[31m" << "error : " << StringToUtf8(ec.message()) << "\033[0m" << std::endl;
                         }
                         else
                         {
@@ -269,7 +274,7 @@ int wmain(int argc, const WCHAR* args[])
     boost::asio::io_service ioctx;
     boost::asio::serial_port serialPort(ioctx);
     hInstance = GetModuleHandle(nullptr);
-    
+
     SetConsoleCP(CP_UTF8);
     SetConsoleOutputCP(CP_UTF8);
 
@@ -301,13 +306,13 @@ int wmain(int argc, const WCHAR* args[])
             if (serialPort.open(portName, ec))
             {
                 std::cerr << "\033[31m" << "can not open " << portName << "\033[0m" <<std::endl;
-                std::cerr << "\033[31m" << "error : " << ec.message() << "\033[0m" << std::endl;
+                std::cerr << "\033[31m" << "error : " << StringToUtf8(ec.message()) << "\033[0m" << std::endl;
                 continue;
             }
             if (InitializeSerialPort(serialPort, cfg, ec))
             {
                 std::cerr << "\033[31m" << "can not initialize " << portName << "\033[0m" << std::endl;
-                std::cerr << "\033[31m" << "error : " << ec.message() << "\033[0m" << std::endl;
+                std::cerr << "\033[31m" << "error : " << StringToUtf8(ec.message()) << "\033[0m" << std::endl;
                 continue;
             }
             break;
@@ -320,7 +325,7 @@ int wmain(int argc, const WCHAR* args[])
     ec = DoWork(ioctx, serialPort);
     if (ec)
     {
-        std::cerr << "\033[31m" << "error : " << ec.message() << "\033[0m" << std::endl;
+        std::cerr << "\033[31m" << "error : " << StringToUtf8(ec.message()) << "\033[0m" << std::endl;
         return ec.value();
     }
     return ERROR_SUCCESS;

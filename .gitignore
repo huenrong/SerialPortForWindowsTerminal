@@ -350,3 +350,4 @@ MigrationBackup/
 .ionide/
 
 boost_1_68_0/
+.vscode/
